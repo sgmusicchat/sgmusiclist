@@ -55,6 +55,9 @@ def run_publish(batch_size: int = 500) -> Tuple[int, str]:
         """
         cursor.execute(sql, (batch_size,))
 
+        # Consume any result sets from the stored procedure
+        cursor.fetchall()
+
         # Fetch output parameters
         cursor.execute("SELECT @published_count AS published_count, @result_message AS result_message")
         result = cursor.fetchone()

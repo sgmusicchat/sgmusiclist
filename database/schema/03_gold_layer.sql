@@ -50,6 +50,7 @@ CREATE TABLE gold_events (
     image_url VARCHAR(500) DEFAULT NULL,
 
     -- Denormalized genre data
+    genre_count INT DEFAULT 0 COMMENT 'Number of genres for this event',
     genres_concat VARCHAR(500) DEFAULT NULL COMMENT 'Comma-separated for display: "Techno, House"',
     genres_fulltext TEXT DEFAULT NULL COMMENT 'Space-separated for FULLTEXT: "Techno House"',
 
@@ -280,26 +281,6 @@ LIMIT 20;
 -- Check index usage with EXPLAIN
 -- EXPLAIN SELECT ... FROM v_live_events WHERE event_date >= CURDATE();
 -- Expected: key=idx_event_date, type=range
-
--- ============================================================================
--- PRE-AGGREGATION: Add genre_count column for fast filtering
--- ============================================================================
-
-ALTER TABLE gold_events
-ADD COLUMN genre_count SMALLINT UNSIGNED DEFAULT 0
-    COMMENT 'Number of genres for this event (pre-calculated during publish)';
-
-ALTER TABLE gold_events
-ADD INDEX idx_genre_count (genre_count)
-    COMMENT 'Filter events by number of genres';
-
--- Add to shadow table as well
-ALTER TABLE gold_events_new
-ADD COLUMN genre_count SMALLINT UNSIGNED DEFAULT 0
-    COMMENT 'Number of genres for this event (pre-calculated during publish)';
-
-ALTER TABLE gold_events_new
-ADD INDEX idx_genre_count (genre_count);
 
 -- ============================================================================
 -- PRE-AGGREGATION TABLE: gold_genre_stats

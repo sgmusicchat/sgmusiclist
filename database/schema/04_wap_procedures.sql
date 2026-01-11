@@ -100,19 +100,67 @@ BEGIN
 END$$
 
 -- ============================================================================
--- PROCEDURE: sp_publish_to_gold
+-- PROCEDURE: sp_audit_pending_events
+-- Purpose: Audit all pending events for data quality issues
 -- ============================================================================
 
-DROP PROCEDURE IF EXISTS sp_publish_to_gold$$
+DROP PROCEDURE IF EXISTS sp_audit_pending_events$$
 
-CREATE PROCEDURE sp_publish_to_gold(
+CREATE PROCEDURE sp_audit_pending_events(
+    OUT p_error_count INT,
+    OUT p_quarantined_count INT,
+    OUT p_error_summary TEXT
+)
+BEGIN
+    DECLARE v_past_date_count INT;
+    DECLARE v_missing_venue_count INT;
+
+    -- Initialize
+    SET p_error_count = 0;
+    SET p_quarantined_count = 0;
+    SET p_error_summary = '';
+
+    -- Check for events with past dates
+    SELECT COUNT(*) INTO v_past_date_count
+    FROM silver_events
+    WHERE status = 'pending' AND event_date < CURDATE();
+
+    -- Check for events with missing venues
+    SELECT COUNT(*) INTO v_missing_venue_count
+    FROM silver_events se
+    LEFT JOIN dim_venues dv ON se.venue_id = dv.venue_id
+    WHERE se.status = 'pending' AND dv.venue_id IS NULL;
+
+    SET p_error_count = v_past_date_count + v_missing_venue_count;
+
+    IF v_past_date_count > 0 THEN
+        SET p_error_summary = CONCAT(p_error_summary, v_past_date_count, ' events with past dates. ');
+    END IF;
+
+    IF v_missing_venue_count > 0 THEN
+        SET p_error_summary = CONCAT(p_error_summary, v_missing_venue_count, ' events with missing venues. ');
+    END IF;
+
+    -- Log to audit
+    INSERT INTO wap_audit_log (operation, event_id, admin_user, notes, executed_at)
+    VALUES ('audit', NULL, 'system', p_error_summary, NOW());
+END$$
+
+-- ============================================================================
+-- PROCEDURE: sp_publish_to_gold_single
+-- Purpose: Publish a single event to Gold layer (used by admin and batch)
+-- ============================================================================
+
+DROP PROCEDURE IF EXISTS sp_publish_to_gold_single$$
+
+CREATE PROCEDURE sp_publish_to_gold_single(
     IN p_event_id BIGINT UNSIGNED,
     IN p_admin_user VARCHAR(50),
     IN p_notes TEXT
 )
 BEGIN
-    -- Normalize genres: split genres_concat into event_genres (remove spaces for matching)
-    INSERT INTO event_genres (event_id, genre_id)
+    -- Normalize genres
+    INSERT IGNORE INTO event_genres (event_id, genre_id)
     SELECT se.event_id, dg.genre_id
     FROM silver_events se
     INNER JOIN dim_genres dg ON FIND_IN_SET(dg.genre_name, REPLACE(se.genres_concat, ' ', '')) > 0
@@ -155,17 +203,77 @@ BEGIN
         NOW()
     FROM silver_events se
     INNER JOIN dim_venues dv ON se.venue_id = dv.venue_id
-    WHERE se.event_id = p_event_id AND se.status = 'pending';
+    WHERE se.event_id = p_event_id AND se.status = 'pending'
+    ON DUPLICATE KEY UPDATE
+        event_name = VALUES(event_name),
+        updated_at = NOW();
 
     -- Update Silver status
     UPDATE silver_events SET status = 'published', published_at = NOW() WHERE event_id = p_event_id;
 
     -- Audit log
-    INSERT INTO wap_audit_log (
-        operation, event_id, admin_user, notes, executed_at
-    ) VALUES (
-        'publish', p_event_id, p_admin_user, p_notes, NOW()
-    );
+    INSERT INTO wap_audit_log (operation, event_id, admin_user, notes, executed_at)
+    VALUES ('publish', p_event_id, p_admin_user, p_notes, NOW());
+END$$
+
+-- ============================================================================
+-- PROCEDURE: sp_publish_to_gold (Batch version for auto-publish)
+-- Purpose: Publish all pending events to Gold layer
+-- ============================================================================
+
+DROP PROCEDURE IF EXISTS sp_publish_to_gold$$
+
+CREATE PROCEDURE sp_publish_to_gold(
+    IN p_batch_size INT,
+    OUT p_published_count INT,
+    OUT p_result_message VARCHAR(500)
+)
+BEGIN
+    DECLARE v_event_id BIGINT UNSIGNED;
+    DECLARE v_done INT DEFAULT FALSE;
+    DECLARE v_error_count INT DEFAULT 0;
+
+    DECLARE event_cursor CURSOR FOR
+        SELECT event_id
+        FROM silver_events
+        WHERE status = 'pending'
+        LIMIT p_batch_size;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = TRUE;
+
+    SET p_published_count = 0;
+
+    OPEN event_cursor;
+
+    publish_loop: LOOP
+        FETCH event_cursor INTO v_event_id;
+
+        IF v_done THEN
+            LEAVE publish_loop;
+        END IF;
+
+        BEGIN
+            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+            BEGIN
+                SET v_error_count = v_error_count + 1;
+            END;
+
+            -- Call single-event publisher
+            CALL sp_publish_to_gold_single(v_event_id, 'auto_publish', 'Automated batch publish');
+            SET p_published_count = p_published_count + 1;
+        END;
+    END LOOP;
+
+    CLOSE event_cursor;
+
+    -- Set result message
+    IF p_published_count = 0 THEN
+        SET p_result_message = 'No pending events to publish';
+    ELSEIF v_error_count > 0 THEN
+        SET p_result_message = CONCAT('Published ', p_published_count, ' events (', v_error_count, ' errors)');
+    ELSE
+        SET p_result_message = CONCAT('SUCCESS: Published ', p_published_count, ' events');
+    END IF;
 END$$
 
 DELIMITER ;
