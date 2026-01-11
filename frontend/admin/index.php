@@ -57,6 +57,42 @@ $gold_count = $stmt_gold->fetch()['count'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - r/sgmusicchat</title>
     <style>
+        .terminal-prompt {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #000;
+            border-top: 2px solid #0f0;
+            padding: 10px 20px;
+            box-shadow: 0 -5px 15px rgba(0, 255, 0, 0.2);
+        }
+        .prompt-container {
+            display: flex;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .prompt-user {
+            color: #0ff;
+            margin-right: 10px;
+            white-space: nowrap;
+        }
+        #terminal-input {
+            background: transparent;
+            border: none;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            width: 100%;
+            outline: none;
+        }
+        /* Push the footer/container up so it's not hidden by the bar */
+        .container {
+            padding-bottom: 80px; 
+        }
+
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Courier New', monospace; background: #000; color: #0f0; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
@@ -94,7 +130,14 @@ $gold_count = $stmt_gold->fetch()['count'];
         </div>
 
         <h1>Admin Dashboard</h1>
-
+        <?php
+        if (isset($_GET['msg'])) {
+            echo "<p style='color: #0f0; padding: 10px; border: 1px solid #0f0;'>{$_GET['msg']}</p>";
+        }
+        if (isset($_GET['error'])) {
+            echo "<p style='color: #f00; padding: 10px; border: 1px solid #f00;'>{$_GET['error']}</p>";
+        }
+        ?>
         <div class="stats">
             <div class="stat-box">
                 <div class="stat-number"><?= $counts['pending'] ?? 0 ?></div>
@@ -201,5 +244,7 @@ $gold_count = $stmt_gold->fetch()['count'];
             Logged in as: <?= $_SESSION['admin_username'] ?>
         </div>
     </div>
+
+
 </body>
 </html>

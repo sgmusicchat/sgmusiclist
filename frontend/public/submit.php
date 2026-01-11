@@ -6,10 +6,6 @@
  */
 
 require_once '../includes/config.php';
-require_once '../includes/persona_helper.php';
-
-// Load persona theme (server-side, no JS)
-$persona_theme = get_persona_theme();
 
 $success_message = '';
 $error_message = '';
@@ -55,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Step 2: Call sp_upsert_event to write to Silver
         $sql_upsert = "
             CALL sp_upsert_event(
-                :venue_id, :event_date, :event_name, :start_time, :end_time,
+                :venue_id, :event_date, :event_name, :start_time, :end_time, :genres_concat,
                 :price_min, :price_max, :is_free, :description, :age_restriction,
                 :ticket_url, 'user_submission', :bronze_id,
                 @event_id, @is_new
@@ -69,15 +65,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'event_name' => $_POST['event_name'],
             'start_time' => $_POST['start_time'] ?: null,
             'end_time' => $_POST['end_time'] ?: null,
-            'price_min' => $_POST['is_free'] ? null : ($_POST['price_min'] ?: null),
-            'price_max' => $_POST['is_free'] ? null : ($_POST['price_max'] ?: null),
+            'genres_concat' => $_POST['genres_concat'],
+
+
+            // Check if 'is_free' exists using isset()
+            'price_min' => isset($_POST['is_free']) ? null : ($_POST['price_min'] ?: null),
+            'price_max' => isset($_POST['is_free']) ? null : ($_POST['price_max'] ?: null),
+            
+            // Map the checkbox state to 1 (checked) or 0 (unchecked)
             'is_free' => isset($_POST['is_free']) ? 1 : 0,
+            
             'description' => $_POST['description'] ?: null,
             'age_restriction' => $_POST['age_restriction'] ?: 'all_ages',
             'ticket_url' => $_POST['ticket_url'] ?: null,
             'bronze_id' => $bronze_id
         ]);
-
+        
+        
         $success_message = "✅ Thank you! Your event has been submitted and is pending admin approval.";
 
         // Clear form
@@ -93,47 +97,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Submit Event - r/sgmusicchat</title>
-    <!-- Persona Theme (Server-Side) -->
-    <style>
-        <?php echo render_persona_theme_css($persona_theme); ?>
-    </style>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: var(--persona-font, 'Courier New'), monospace; 
-            background: var(--persona-bg, #000); 
-            color: var(--persona-accent, #0f0); 
-            padding: 20px; 
-        }
+        body { font-family: 'Courier New', monospace; background: #000; color: #0f0; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; }
-        h1 { color: var(--persona-accent, #0f0); margin-bottom: 20px; }
-        .nav { margin-bottom: 20px; border-bottom: var(--persona-border, 1px solid #0f0); padding-bottom: 10px; }
-        .nav a { color: var(--persona-accent, #0f0); margin-right: 20px; text-decoration: none; }
+        h1 { color: #0f0; margin-bottom: 20px; }
+        .nav { margin-bottom: 20px; border-bottom: 1px solid #0f0; padding-bottom: 10px; }
+        .nav a { color: #0f0; margin-right: 20px; text-decoration: none; }
         .form-group { margin-bottom: 20px; }
-        label { display: block; color: var(--persona-accent, #0ff); margin-bottom: 5px; font-weight: bold; }
-        input, select, textarea { 
-            width: 100%; 
-            padding: 10px; 
-            background: var(--persona-bg, #111); 
-            color: var(--persona-accent, #0f0); 
-            border: var(--persona-border, 1px solid #0f0); 
-            font-family: var(--persona-font, 'Courier New'), monospace; 
-        }
+        label { display: block; color: #0ff; margin-bottom: 5px; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 10px; background: #111; color: #0f0; border: 1px solid #0f0; font-family: 'Courier New', monospace; }
         input[type="checkbox"] { width: auto; }
-        button { 
-            background: var(--persona-accent, #0f0); 
-            color: var(--persona-bg, #000); 
-            border: none; 
-            padding: 15px 30px; 
-            font-size: 16px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            font-family: var(--persona-font, 'Courier New'), monospace; 
-        }
-        button:hover { background: var(--persona-accent, #0ff); }
-        .success { background: var(--persona-accent, #0f0); color: var(--persona-bg, #000); padding: 15px; margin-bottom: 20px; }
-        .error { background: var(--persona-accent, #f00); color: #fff; padding: 15px; margin-bottom: 20px; }
-        .required { color: var(--persona-accent, #ff0); }
+        button { background: #0f0; color: #000; border: none; padding: 15px 30px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: 'Courier New', monospace; }
+        button:hover { background: #0ff; }
+        .success { background: #0f0; color: #000; padding: 15px; margin-bottom: 20px; }
+        .error { background: #f00; color: #fff; padding: 15px; margin-bottom: 20px; }
+        .required { color: #ff0; }
     </style>
 </head>
 <body>
@@ -188,6 +167,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="form-group">
                 <label>End Time</label>
                 <input type="time" name="end_time" value="<?= htmlspecialchars($_POST['end_time'] ?? '') ?>">
+            </div>
+            <div class="form-group">
+                <label>Genres</label>
+                <input type="text" name="genres_concat" placeholder="e.g., Techno, House, Trance" value="<?= htmlspecialchars($_POST['genres_concat'] ?? '') ?>">
             </div>
 
             <div class="form-group">
@@ -253,8 +236,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             document.getElementById('price_fields').style.display = isFree ? 'none' : 'block';
         }
     </script>
-
-    <!-- Persona Synth JavaScript -->
-    <script src="/assets/js/persona-synth.js"></script>
 </body>
 </html>

@@ -127,6 +127,9 @@ CREATE TABLE silver_events (
     start_time TIME DEFAULT NULL COMMENT 'Event start time (HH:MM:SS)',
     end_time TIME DEFAULT NULL COMMENT 'Event end time (HH:MM:SS)',
 
+    -- Genres (temporary for submission, will be normalized to event_genres)
+    genres_concat VARCHAR(500) DEFAULT NULL COMMENT 'Comma-separated genres from submission',
+
     -- Pricing fields
     price_min DECIMAL(8,2) DEFAULT NULL COMMENT 'Minimum price in SGD',
     price_max DECIMAL(8,2) DEFAULT NULL COMMENT 'Maximum price in SGD',
