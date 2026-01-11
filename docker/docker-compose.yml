@@ -44,14 +44,12 @@ services:
       DB_NAME_SILVER: rsgmusicchat_silver
       DB_NAME_GOLD: rsgmusicchat_gold
       FASTAPI_ENV: ${ENVIRONMENT:-development}
-      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       ENABLE_SCHEDULER: ${ENABLE_SCHEDULER:-true}
       AUTO_PUBLISH_INTERVAL: ${AUTO_PUBLISH_INTERVAL:-60}
       MOCK_SCRAPER_HOUR: ${MOCK_SCRAPER_HOUR:-6}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GEMINI_MODEL_NAME: ${GEMINI_MODEL_NAME:-gemini-2.0-flash-exp}
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - python_logs:/app/logs
     networks:
