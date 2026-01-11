@@ -3,12 +3,17 @@ header('Content-Type: application/json');
 require_once '../includes/config.php';
 
 // OpenRouter API
-$api_key = defined('OPENROUTER_API_KEY') ? OPENROUTER_API_KEY : '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';
+$api_key = OPENROUTER_API_KEY;
+if (empty($api_key)) {
+    echo json_encode(['success' => false, 'message' => 'OpenRouter API key not configured']);
+    exit;
+}
+
 $model = 'google/gemini-2.0-flash-001';  // Or 'meta-llama/llama-3.1-8b-instruct:free'; // Free model via OpenRouter
 $userInput = $_POST['text'] ?? '';
 
 if (empty(trim($userInput))) {
-    echo json_encode(['success' => false, 'message' => 'No input']); 
+    echo json_encode(['success' => false, 'message' => 'No input']);
     exit;
 }
 

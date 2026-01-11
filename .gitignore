@@ -1,4 +1,5 @@
 *.md
 claude-context/*
 .env
+docker/.env
 .env.example

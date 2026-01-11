@@ -9,6 +9,37 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+// Simple .env file loader
+function load_env($path) {
+    if (!file_exists($path)) {
+        return;
+    }
+
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        // Skip comments and empty lines
+        if (strpos(trim($line), '#') === 0 || trim($line) === '') {
+            continue;
+        }
+
+        // Parse KEY=VALUE
+        if (strpos($line, '=') !== false) {
+            list($key, $value) = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+
+            // Set environment variable if not already set
+            if (!getenv($key)) {
+                putenv("$key=$value");
+                $_ENV[$key] = $value;
+            }
+        }
+    }
+}
+
+// Load .env file from project root (two directories up from includes/)
+load_env(__DIR__ . '/../../.env');
+
 // Database credentials from environment variables
 $db_host = getenv('DB_HOST') ?: 'mysql';
 $db_user = getenv('DB_USER') ?: 'rsguser';
@@ -65,6 +96,9 @@ try {
 // Admin authentication configuration
 $admin_username = getenv('ADMIN_USERNAME') ?: 'admin';
 $admin_password_hash = getenv('ADMIN_PASSWORD_HASH') ?: password_hash('admin123', PASSWORD_BCRYPT);
+
+// AI Service API Keys
+define('OPENROUTER_API_KEY', getenv('OPENROUTER_API_KEY') ?: '');
 
 // Helper function: Check if user is admin
 function is_admin() {

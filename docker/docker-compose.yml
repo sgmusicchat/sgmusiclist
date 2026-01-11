@@ -48,6 +48,7 @@ services:
       ENABLE_SCHEDULER: ${ENABLE_SCHEDULER:-true}
       AUTO_PUBLISH_INTERVAL: ${AUTO_PUBLISH_INTERVAL:-60}
       MOCK_SCRAPER_HOUR: ${MOCK_SCRAPER_HOUR:-6}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
     expose:
       - "8000"
     volumes:
@@ -80,6 +81,7 @@ services:
       DB_PASSWORD: ${MYSQL_PASSWORD:-rsgpass}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
     volumes:
       - ../frontend:/var/www/html:ro
       - php_sessions:/var/lib/php/sessions
